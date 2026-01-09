@@ -4,50 +4,381 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>음성→텍스트→SOAP(S/P) 요약 (로컬 테스트용)</title>
+
   <style>
-    body { font-family: system-ui, sans-serif; margin: 24px; }
-    button { padding: 10px 14px; margin-right: 8px; }
-    input[type="password"] { padding: 10px; width: min(680px, 100%); }
-    #status { margin-left: 8px; font-weight: 600; }
-    textarea { width: 100%; height: 170px; margin-top: 12px; padding: 12px; font-size: 15px; box-sizing: border-box; }
-    #sBox, #pBox { height: 140px; }
-    .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top: 10px; }
-    .note { color:#666; font-size: 13px; margin-top: 8px; line-height: 1.4; }
-    .grid { display:grid; grid-template-columns: 1fr; gap: 14px; margin-top: 8px; }
-    @media (min-width: 980px) {
-      .grid { grid-template-columns: 1fr 1fr; }
+    :root{
+      --bg-0:#0b1420;
+      --bg-1:#0e1b2a;
+      --panel:#0f2236;
+      --panel-2:#0c1c2e;
+      --stroke:rgba(255,255,255,.08);
+      --stroke-2:rgba(255,255,255,.12);
+      --text:#eaf2ff;
+      --muted:rgba(234,242,255,.72);
+      --muted2:rgba(234,242,255,.55);
+      --accent:#2aa6ff;
+      --accent-2:#00d6d6;
+      --warn:#ffcc66;
+      --good:#2bd576;
+      --bad:#ff6b6b;
+      --shadow: 0 18px 45px rgba(0,0,0,.35);
+      --radius: 18px;
+      --radius-lg: 22px;
     }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(1100px 520px at 15% -10%, rgba(42,166,255,.22), transparent 55%),
+        radial-gradient(900px 520px at 95% 0%, rgba(0,214,214,.16), transparent 55%),
+        linear-gradient(180deg, var(--bg-0), var(--bg-1));
+      overflow-x:hidden;
+    }
+
+    .app{
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 18px 18px 26px;
+    }
+
+    /* Top Bar */
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .brand{
+      display:flex;
+      flex-direction:column;
+      gap: 2px;
+      min-width: 220px;
+    }
+    .brand .title{
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: .2px;
+      display:flex;
+      align-items:center;
+      gap: 10px;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap: 7px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      white-space:nowrap;
+    }
+    .dot{
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--good);
+      box-shadow: 0 0 0 4px rgba(43,213,118,.15);
+    }
+    .brand .subtitle{
+      color: var(--muted2);
+      font-size: 12px;
+    }
+
+    .topbar-right{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .inputline{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(0,0,0,.14);
+      min-width: min(560px, 100%);
+    }
+    .inputline label{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 750;
+      letter-spacing: .15px;
+      white-space:nowrap;
+    }
+
+    input[type="password"]{
+      width: 100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      padding: 4px 0;
+    }
+    input[type="password"]::placeholder{ color: rgba(234,242,255,.35); }
+
+    .btnrow{
+      display:flex;
+      gap: 8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
+    button{
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 14px;
+      font-weight: 750;
+      font-size: 13px;
+      cursor: pointer;
+      transition: transform .08s ease, border-color .15s ease, background .15s ease, opacity .15s ease;
+      box-shadow: 0 10px 22px rgba(0,0,0,.18);
+    }
+    button:hover{
+      border-color: rgba(255,255,255,.16);
+      background: rgba(255,255,255,.07);
+    }
+    button:active{ transform: translateY(1px); }
+    button:disabled{ opacity:.45; cursor:not-allowed; }
+
+    .btn-primary{
+      border-color: rgba(42,166,255,.35);
+      background: linear-gradient(180deg, rgba(42,166,255,.25), rgba(42,166,255,.12));
+    }
+    .btn-accent{
+      border-color: rgba(0,214,214,.35);
+      background: linear-gradient(180deg, rgba(0,214,214,.22), rgba(0,214,214,.10));
+    }
+
+    #status{
+      font-weight: 850;
+      font-size: 12px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+    }
+
+    .note{
+      margin: 12px 0 0;
+      padding: 10px 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,204,102,.22);
+      background: rgba(255,204,102,.06);
+      color: rgba(255,241,214,.85);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    /* Main Layout */
+    .layout{
+      margin-top: 14px;
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    @media (max-width: 1020px){
+      .layout{ grid-template-columns: 1fr; }
+      .inputline{ min-width: 100%; }
+      .topbar{ align-items:flex-start; }
+      .topbar-right{ justify-content:flex-start; }
+      .brand{ min-width: auto; }
+    }
+
+    .card{
+      border: 1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .card-header{
+      padding: 12px 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      border-bottom: 1px solid var(--stroke);
+      background: rgba(0,0,0,.12);
+    }
+
+    .card-title{
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: .2px;
+      color: var(--text);
+      display:flex;
+      gap: 8px;
+      align-items:center;
+    }
+
+    .card-body{ padding: 12px 14px 14px; }
+
+    textarea{
+      width:100%;
+      min-height: 180px;
+      resize: vertical;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: rgba(0,0,0,.18);
+      color: var(--text);
+      padding: 12px 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      outline: none;
+      transition: border-color .15s ease, background .15s ease;
+    }
+    textarea:focus{
+      border-color: rgba(42,166,255,.35);
+      background: rgba(0,0,0,.22);
+    }
+    textarea::placeholder{ color: rgba(234,242,255,.35); }
+
+    /* Kanban */
+    .kanban{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    @media (max-width: 980px){
+      .kanban{ grid-template-columns: 1fr; }
+    }
+
+    .split{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 980px){
+      .split{ grid-template-columns: 1fr; }
+    }
+
+    .mini{
+      font-size: 12px;
+      color: var(--muted2);
+    }
+
+    /* Make S/P boxes a bit shorter like panels */
+    #sBox, #pBox { min-height: 240px; }
+
+    /* Subtle section spacing */
+    .stack{ display:flex; flex-direction:column; gap: 14px; }
+
+    /* Optional badge colors (status text only) */
+    .status-good{ border-color: rgba(43,213,118,.25)!important; }
+    .status-warn{ border-color: rgba(255,204,102,.25)!important; }
+    .status-bad{ border-color: rgba(255,107,107,.25)!important; }
+
   </style>
 </head>
+
 <body>
-  <h2>음성 → 텍스트 → SOAP(S/P) AI 요약 (로컬 1회 테스트)</h2>
+  <div class="app">
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <div class="brand">
+        <div class="title">
+          음성 → 텍스트 → SOAP(S/P) 요약
+          <span class="pill"><span class="dot"></span> Live</span>
+        </div>
+        <div class="subtitle">로컬 테스트용 · 디자인만 대시보드 스타일</div>
+      </div>
 
-  <div class="row">
-    <label><b>OpenAI API Key:</b></label>
-    <input id="apiKey" type="password" placeholder="sk-... (로컬 테스트용, 저장 안 함)" />
-  </div>
-  <div class="note">
-    ⚠️ 이 파일은 <b>개인 PC에서만</b> 테스트용입니다. 브라우저에서 API Key가 노출될 수 있으니 사내 배포/운영에는 사용하지 마세요.
-  </div>
+      <div class="topbar-right">
+        <div class="inputline">
+          <label for="apiKey">OpenAI API Key</label>
+          <input id="apiKey" type="password" placeholder="sk-... (로컬 테스트용, 저장 안 함)" />
+        </div>
 
-  <div class="row">
-    <button id="btnStart">녹음 시작</button>
-    <button id="btnStop" disabled>녹음 중지</button>
-    <button id="btnSummarize">SOAP 요약하기</button>
-    <span id="status">대기</span>
-  </div>
-
-  <h3>원문 (음성 → 텍스트)</h3>
-  <textarea id="textBox" placeholder="여기에 음성이 텍스트로 입력됩니다."></textarea>
-
-  <div class="grid">
-    <div>
-      <h3>S (Subjective)</h3>
-      <textarea id="sBox" placeholder="환자가 직접 호소/표현한 내용 요약 (bullet)" readonly></textarea>
+        <div class="btnrow">
+          <button id="btnStart" class="btn-primary">녹음 시작</button>
+          <button id="btnStop" disabled>녹음 중지</button>
+          <button id="btnSummarize" class="btn-accent">SOAP 요약하기</button>
+          <span id="status">대기</span>
+        </div>
+      </div>
     </div>
-    <div>
-      <h3>P (Plan)</h3>
-      <textarea id="pBox" placeholder="의사의 계획/치료 방침 요약 (bullet)" readonly></textarea>
+
+    <div class="note">
+      ⚠️ 이 파일은 <b>개인 PC에서만</b> 테스트용입니다. 브라우저에서 API Key가 노출될 수 있으니 사내 배포/운영에는 사용하지 마세요.
+    </div>
+
+    <!-- MAIN -->
+    <div class="layout">
+      <!-- LEFT -->
+      <div class="stack">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">원문 (음성 → 텍스트)</div>
+            <div class="mini">녹음 후 자동 입력</div>
+          </div>
+          <div class="card-body">
+            <textarea id="textBox" placeholder="여기에 음성이 텍스트로 입력됩니다."></textarea>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">도움말</div>
+            <div class="mini">S/P는 읽기 전용</div>
+          </div>
+          <div class="card-body">
+            <div class="mini" style="line-height:1.7">
+              • <b>녹음 시작</b> → 말하기 → <b>녹음 중지</b><br/>
+              • 원문이 들어오면 <b>SOAP 요약하기</b> 클릭<br/>
+              • 결과는 우측 S / P 패널에 bullet로 표시
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="kanban">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">S (Subjective)</div>
+            <div class="pill">환자 주관</div>
+          </div>
+          <div class="card-body">
+            <textarea id="sBox" placeholder="환자가 직접 호소/표현한 내용 요약 (bullet)" readonly></textarea>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">P (Plan)</div>
+            <div class="pill">치료 방침</div>
+          </div>
+          <div class="card-body">
+            <textarea id="pBox" placeholder="의사의 계획/치료 방침 요약 (bullet)" readonly></textarea>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -63,164 +394,4 @@
     const textBox  = document.getElementById("textBox");
     const sBox     = document.getElementById("sBox");
     const pBox     = document.getElementById("pBox");
-    const apiKeyEl = document.getElementById("apiKey");
-
-    if (!SpeechRecognition) {
-      statusEl.textContent = "이 브라우저는 실시간 음성 인식을 지원하지 않습니다. (Chrome 권장)";
-      btnStart.disabled = true;
-      btnStop.disabled = true;
-      btnSummarize.disabled = true;
-      throw new Error("SpeechRecognition not supported");
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "ko-KR";
-    recognition.interimResults = true;
-    recognition.continuous = true;
-
-    let finalText = "";
-
-    recognition.onstart = () => {
-      statusEl.textContent = "녹음 중...";
-      btnStart.disabled = true;
-      btnStop.disabled = false;
-    };
-
-    recognition.onend = () => {
-      statusEl.textContent = "중지됨";
-      btnStart.disabled = false;
-      btnStop.disabled = true;
-    };
-
-    recognition.onerror = (e) => {
-      statusEl.textContent = "오류: " + e.error;
-    };
-
-    recognition.onresult = (event) => {
-      let interim = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) finalText += transcript + " ";
-        else interim += transcript;
-      }
-      textBox.value = finalText + interim;
-    };
-
-    btnStart.onclick = () => { try { recognition.start(); } catch(e) {} };
-    btnStop.onclick  = () => recognition.stop();
-
-    // ====== (2) OpenAI 호출 (Responses API) ======
-    async function callOpenAIResponses(apiKey, prompt, text) {
-      const resp = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + apiKey
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          input: [
-            {
-              role: "system",
-              content: [{ type: "input_text", text: prompt }]
-            },
-            {
-              role: "user",
-              content: [{ type: "input_text", text }]
-            }
-          ]
-        })
-      });
-
-      const json = await resp.json();
-      if (!resp.ok) {
-        throw new Error(json?.error?.message || ("HTTP " + resp.status));
-      }
-
-      const out0 = json.output?.[0];
-      const txt = out0?.content?.[0]?.text;
-      return (txt || "").trim();
-    }
-
-    // ====== (3) 결과 파싱: [S] / [P] ======
-    function parseSP(text) {
-      // 기본값
-      let s = "";
-      let p = "";
-
-      // 간단 파서: [S] ... [P] ...
-      const sIdx = text.indexOf("[S]");
-      const pIdx = text.indexOf("[P]");
-
-      if (sIdx !== -1 && pIdx !== -1) {
-        s = text.substring(sIdx + 3, pIdx).trim();
-        p = text.substring(pIdx + 3).trim();
-      } else {
-        // 혹시 "S:" "P:" 형태로 오면 대응
-        const s2 = text.match(/(?:^|\n)S\s*[:\]]\s*([\s\S]*?)(?:\nP\s*[:\]]|$)/i);
-        const p2 = text.match(/(?:^|\n)P\s*[:\]]\s*([\s\S]*)$/i);
-        if (s2) s = s2[1].trim();
-        if (p2) p = p2[1].trim();
-
-        // 그래도 없으면 전체를 S로
-        if (!s && !p) s = text;
-      }
-
-      // bullet이 아닌 문장일 때도 보이게 최소 정리
-      return { s, p };
-    }
-
-    btnSummarize.onclick = async () => {
-      const apiKey = apiKeyEl.value.trim();
-      const text = textBox.value.trim();
-
-      if (!apiKey) { alert("API Key를 입력하세요."); return; }
-      if (!text) { alert("요약할 텍스트가 없습니다."); return; }
-
-      // 결과 초기화
-      sBox.value = "";
-      pBox.value = "";
-      statusEl.textContent = "SOAP 요약 중...";
-
-      const prompt = `### Instruction ###
-당신은 의료 기록 전문가입니다. 아래에 외래 진료 중 의사와 환자의 대화가 주어집니다. 이 대화를 바탕으로 SOAP 형식 중 다음 두 항목만 간결하고 전문적으로 요약하세요.
-
-- S (Subjective): 환자가 직접 호소하거나 표현한 증상, 불편, 감정, 병력 등 주관적 정보
-- P (Plan): 의사가 설명하거나 계획한 검사 결과, 치료 또는 약물 계획, 교육, 추후 진료 등 치료 방침
-
-※ 작성 지침:
-- 각 항목은 짧고 명료한 bullet 형식으로 요약합니다.
-- 불필요하거나 반복적인 문장은 생략합니다.
-- 의사와 환자의 발화를 구분하여 분석하고 요약합니다.
-- 검사 수치에 대한 내용은 주로 의사가 말하며, 환자가 말하는 경우는 거의 없습니다.
-- 검사 수치 및 의학적 정보는 구체적으로 기술합니다.
-
-※ 출력 형식(반드시 준수):
-[S]
-- ...
-- ...
-[P]
-- ...
-- ...
-
-추가 규칙:
-- [S]와 [P] 섹션은 반드시 모두 출력합니다. 해당 내용이 없으면 "- 특이사항 없음" 으로 출력합니다.
-- 각 bullet 사이에는 빈 줄 없이 붙여서 작성합니다.
-`;
-
-      try {
-        const raw = await callOpenAIResponses(apiKey, prompt, text);
-        const parsed = parseSP(raw);
-
-        sBox.value = parsed.s || "- 특이사항 없음";
-        pBox.value = parsed.p || "- 특이사항 없음";
-
-        statusEl.textContent = "완료";
-      } catch (e) {
-        statusEl.textContent = "요약 실패";
-        alert(e.message);
-      }
-    };
-  </script>
-</body>
-</html>
+    const apiKeyEl = document.getElement
