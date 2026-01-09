@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>음성→텍스트→LLM(로컬 테스트용)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    button { padding: 10px 14px; margin-right: 8px; }
+    input[type="password"] { padding: 10px; width: min(680px, 100%); }
+    #status { margin-left: 8px; font-weight: 600; }
+    textarea { width: 100%; height: 180px; margin-top: 14px; padding: 12px; font-size: 16px; }
+    #summaryBox { height: 260px; }
+    .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top: 8px; }
+    .note { color:#666; font-size: 13px; margin-top: 8px; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <h2>음성 → 텍스트 → AI 요약 (로컬 1회 테스트)</h2>
+
+  <div class="row">
+    <label>OpenAI API Key:</label>
+    <input id="apiKey" type="password" placeholder="key 입력하세요." />
+  </div>
+  <div class="note">
+    ⚠️ 테스트 페이지
+  </div>
+
+  <div class="row">
+    <button id="btnStart">녹음 시작</button>
+    <button id="btnStop" disabled>녹음 중지</button>
+    <button id="btnSummarize">요약하기</button>
+    <span id="status">대기</span>
+  </div>
+
+  <textarea id="textBox" placeholder="여기에 음성이 텍스트로 입력됩니다."></textarea>
+
+  <h3>요약 결과</h3>
+  <textarea id="summaryBox" placeholder="요약 결과가 여기에 표시됩니다." readonly></textarea>
+
+  <script>
+    // ====== 음성인식(Web Speech API) ======
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const btnStart = document.getElementById("btnStart");
+    const btnStop  = document.getElementById("btnStop");
+    const btnSummarize = document.getElementById("btnSummarize");
+    const statusEl = document.getElementById("status");
+    const textBox  = document.getElementById("textBox");
+    const summaryBox = document.getElementById("summaryBox");
+    const apiKeyEl = document.getElementById("apiKey");
+
+    if (!SpeechRecognition) {
+      statusEl.textContent = "이 브라우저는 실시간 음성 인식을 지원하지 않습니다. (Chrome 권장)";
+      btnStart.disabled = true; btnStop.disabled = true; btnSummarize.disabled = true;
+      throw new Error("SpeechRecognition not supported");
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "ko-KR";
+    recognition.interimResults = true;
+    recognition.continuous = true;
+
+    let finalText = "";
+
+    recognition.onstart = () => {
+      statusEl.textContent = "녹음 중...";
+      btnStart.disabled = true;
+      btnStop.disabled = false;
+    };
+
+    recognition.onend = () => {
+      statusEl.textContent = "중지됨";
+      btnStart.disabled = false;
+      btnStop.disabled = true;
+    };
+
+    recognition.onerror = (e) => {
+      statusEl.textContent = "오류: " + e.error;
+    };
+
+    recognition.onresult = (event) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) finalText += transcript + " ";
+        else interim += transcript;
+      }
+      textBox.value = finalText + interim;
+    };
+
+    btnStart.onclick = () => { try { recognition.start(); } catch(e) {} };
+    btnStop.onclick  = () => recognition.stop();
+
+    // ====== OpenAI 호출 (Responses API) ======
+    async function summarizeWithOpenAI(apiKey, prompt, text) {
+      const resp = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + apiKey
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          input: [
+            {
+              role: "system",
+              content: [{ type: "input_text", text: prompt }]
+            },
+            {
+              role: "user",
+              content: [{ type: "input_text", text }]
+            }
+          ]
+        })
+      });
+
+      const json = await resp.json();
+      if (!resp.ok) {
+        throw new Error(json?.error?.message || ("HTTP " + resp.status));
+      }
+
+      // output[0].content[0].text
+      const out0 = json.output?.[0];
+      const txt = out0?.content?.[0]?.text;
+      return txt || "";
+    }
+
+    btnSummarize.onclick = async () => {
+      const apiKey = apiKeyEl.value.trim();
+      const text = textBox.value.trim();
+      if (!apiKey) { alert("API Key를 입력하세요."); return; }
+      if (!text) { alert("요약할 텍스트가 없습니다."); return; }
+
+      const prompt = `### Instruction ###
+당신은 의료 기록 전문가입니다. 아래에 외래 진료 중 의사와 환자의 대화가 주어집니다. 이 대화를 바탕으로 SOAP 형식 중 다음 두 항목만 간결하고 전문적으로 요약하세요.
+
+- S (Subjective): 환자가 직접 호소하거나 표현한 증상, 불편, 감정, 병력 등 주관적 정보
+- P (Plan): 의사가 설명하거나 계획한 검사 결과, 치료 또는 약물 계획, 교육, 추후 진료 등 치료 방침
+
+※ 작성 지침:
+- 각 항목은 짧고 명료한 bullet 형식으로 요약합니다.
+- 불필요하거나 반복적인 문장은 생략합니다.
+- 의사와 환자의 발화를 구분하여 분석하고 요약합니다.
+- 검사 수치에 대한 내용은 주로 의사가 말하며, 환자가 말하는 경우는 거의 없습니다.
+- 검사 수치 및 의학적 정보는 구체적으로 기술합니다.
+- 출력 형식은 아래 예시와 동일하게 작성합니다.
+
+※ 출력 형식(반드시 준수):
+S
+\`\`\` 
+- ...
+- ...
+\`\`\`
+P
+\`\`\`
+- ...
+- ...
+\`\`\`
+
+- 각 항목은 별도의 코드 블록( \`\`\` ) 안에 작성해 copy & paste가 용이하도록 합니다.
+- 각 bullet 사이에는 빈 줄 없이 붙여서 작성합니다.
+`;
+
+      summaryBox.value = "";
+      statusEl.textContent = "요약 중...";
+
+      try {
+        const summary = await summarizeWithOpenAI(apiKey, prompt, text);
+        summaryBox.value = summary;
+        statusEl.textContent = "완료";
+      } catch (e) {
+        statusEl.textContent = "요약 실패";
+        alert(e.message);
+      }
+    };
+  </script>
+</body>
+</html>
