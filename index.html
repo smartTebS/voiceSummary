@@ -114,7 +114,7 @@
       border-radius: 14px;
       border: 1px solid var(--stroke);
       background: rgba(0,0,0,.14);
-      min-width: min(560px, 100%);
+      min-width: min(400px, 100%);
     }
     .inputline label{
       font-size: 12px;
@@ -294,7 +294,20 @@
     .status-warn{ border-color: rgba(255,204,102,.25)!important; }
     .status-bad{ border-color: rgba(255,107,107,.25)!important; }
 
-  </style>
+  
+    /* ===== Patch: Drug textarea height matches .note height ===== */
+    :root{ --note-h: 120px; } /* default fallback */
+    #drugRaw{ min-height: var(--note-h) !important; }
+
+
+    /* ===== Patch: Drug mode collapses empty left column ===== */
+    body.mode-drug #mainLayout{
+      grid-template-columns: 1fr !important;
+    }
+    body.mode-drug #leftCol{ display:none !important; }
+    body.mode-drug #rightCol{ width:100%; }
+
+</style>
 </head>
 
 <body>
@@ -307,10 +320,18 @@
           <span class="pill"><span class="dot"></span> Live</span>
         </div>
         <div class="subtitle">로컬 테스트용 · 디자인만 대시보드 스타일</div>
+      <div class="btnrow" style="margin-top:8px">
+        <button id="tabVoice" class="btn-primary">음성</button>
+        <button id="tabDrug">약물</button>
+      </div>
       </div>
 
       <div class="topbar-right">
-        <div class="inputline">
+        <!--<div class="inputline">
+          <label for="geminiKey">Google Gemini API Key</label>
+          <input id="geminiKey" type="password" placeholder="AIza... (로컬 테스트용, 저장 안 함)" />
+        </div>-->
+<div class="inputline">
           <label for="apiKey">OpenAI API Key</label>
           <input id="apiKey" type="password" placeholder="sk-... (로컬 테스트용, 저장 안 함)" />
         </div>
@@ -319,6 +340,7 @@
           <button id="btnStart" class="btn-primary">녹음 시작</button>
           <button id="btnStop" disabled>녹음 중지</button>
           <button id="btnSummarize" class="btn-accent">SOAP 요약하기</button>
+          <button id="btnSend" class="btn-accent" style="display:none">전송</button>
           <span id="status">대기</span>
         </div>
       </div>
@@ -329,9 +351,10 @@
     </div>
 
     <!-- MAIN -->
-    <div class="layout">
+    <div id="mainLayout" class="layout">
       <!-- LEFT -->
-      <div class="stack">
+      <div id="leftCol" class="stack">
+        <div id="voiceLeft" class="stack">
         <div class="card">
           <div class="card-header">
             <div class="card-title">원문 (음성 → 텍스트)</div>
@@ -357,8 +380,51 @@
         </div>
       </div>
 
+
+        </div>
+
+        <div id="drugLeft" class="stack" style="display:none">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">원문 (약물)</div>
+              <div class="mini">직접 입력</div>
+            </div>
+            <div class="card-body">
+              <textarea id="drugRaw" placeholder="여기에 약물 관련 원문을 입력하세요."></textarea>
+            </div>
+          </div>
+
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">전송 결과</div>
+              <div class="mini">서버 응답 표시</div>
+            </div>
+            <div class="card-body">
+              <textarea id="sendResult" placeholder="전송 버튼을 누르면 서버 응답이 여기에 표시됩니다." readonly></textarea>
+            </div>
+          </div>
+
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">도움말</div>
+              <div class="mini">약물 모드</div>
+            </div>
+            <div class="card-body">
+              <div class="mini" style="line-height:1.7">
+                • 약물 원문을 입력한 뒤 <b>전송</b>을 클릭합니다.<br/>
+                • 전송은 서버 연동(fetch)으로 붙이면 됩니다.<br/>
+                • 오른쪽 <b>정리</b> 박스에 결과를 표시하도록 연결할 수 있습니다.
+              </div>
+            </div>
+          </div>
+        </div>
+
+
       <!-- RIGHT -->
-      <div class="kanban">
+      <div id="rightCol">
+      <div id="soapRight" class="kanban">
         <div class="card">
           <div class="card-header">
             <div class="card-title">S (Subjective)</div>
@@ -378,6 +444,31 @@
             <textarea id="pBox" placeholder="의사의 계획/치료 방침 요약 (bullet)" readonly></textarea>
           </div>
         </div>
+
+      <!-- DRUG RIGHT (hidden by default) -->
+      <div id="drugRight" class="kanban" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">원문</div>
+            <div class="mini">약물 원문</div>
+          </div>
+          <div class="card-body">
+            <textarea id="drugRawMirror" placeholder="(약물 원문은 좌측 입력을 사용하세요.)" readonly></textarea>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">정리</div>
+            <div class="mini">결과</div>
+          </div>
+          <div class="card-body">
+            <textarea id="drugResult" placeholder="전송/정리 결과가 여기에 표시됩니다." readonly></textarea>
+          </div>
+        </div>
+      </div>
+
+      </div>
       </div>
     </div>
   </div>
@@ -395,6 +486,64 @@
     const sBox     = document.getElementById("sBox");
     const pBox     = document.getElementById("pBox");
     const apiKeyEl = document.getElementById("apiKey");
+    const geminiKeyEl = document.getElementById("geminiKey");
+
+    // ====== (0) 모드 탭(음성/약물) ======
+    const tabVoice = document.getElementById("tabVoice");
+    const tabDrug  = document.getElementById("tabDrug");
+    const btnSend  = document.getElementById("btnSend");
+
+    const voiceLeft = document.getElementById("voiceLeft");
+    const drugLeft  = document.getElementById("drugLeft");
+    const soapRight = document.getElementById("soapRight");
+    const drugRight = document.getElementById("drugRight");
+
+    const drugRaw = document.getElementById("drugRaw");
+    const drugRawMirror = document.getElementById("drugRawMirror");
+    const drugResult = document.getElementById("drugResult");
+    const sendResult = document.getElementById("sendResult");
+
+    let currentMode = "voice"; // "voice" | "drug"
+
+    function setMode(mode){
+      currentMode = mode;
+      const isDrug = (mode === "drug");
+
+      // body class for layout
+      document.body.classList.toggle("mode-drug", isDrug);
+
+
+      // Top action buttons
+      btnStart.style.display = isDrug ? "none" : "";
+      btnStop.style.display  = isDrug ? "none" : "";
+      btnSummarize.style.display = isDrug ? "none" : "";
+      statusEl.style.display = isDrug ? "none" : "";
+      btnSend.style.display  = isDrug ? "" : "none";
+
+      // Panels
+      if (voiceLeft) voiceLeft.style.display = isDrug ? "none" : "";
+      if (drugLeft)  drugLeft.style.display  = isDrug ? "" : "none";
+      if (soapRight) soapRight.style.display = isDrug ? "none" : "grid";
+      if (drugRight) drugRight.style.display = isDrug ? "grid" : "none";
+
+      // Tab highlight
+      if (isDrug){
+        tabDrug.classList.add("btn-primary");
+        tabVoice.classList.remove("btn-primary");
+      } else {
+        tabVoice.classList.add("btn-primary");
+        tabDrug.classList.remove("btn-primary");
+      }
+    }
+
+    tabVoice?.addEventListener("click", () => setMode("voice"));
+    tabDrug?.addEventListener("click", () => setMode("drug"));
+
+    // 약물 원문 미러
+    drugRaw?.addEventListener("input", () => {
+      if (drugRawMirror) drugRawMirror.value = drugRaw.value;
+    });
+
 
     if (!SpeechRecognition) {
       statusEl.textContent = "이 브라우저는 실시간 음성 인식을 지원하지 않습니다. (Chrome 권장)";
@@ -477,7 +626,38 @@
       const out0 = json.output?.[0];
       const txt = out0?.content?.[0]?.text;
       return (txt || "").trim();
+    
+    // ====== (2-2) Google Gemini 호출 (Generative Language API: generateContent) ======
+    //  로컬 테스트용: 브라우저에서 키가 노출될 수 있습니다.
+    async function callGeminiGenerateContent(geminiKey, prompt, text) {
+      const model = "gemini-1.5-flash";
+      const url = "https://generativelanguage.googleapis.com/v1beta/models/" + model
+                + ":generateContent?key=" + encodeURIComponent(geminiKey);
+
+      const combined = prompt + "\n\n[대화 원문]\n" + text;
+
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            { role: "user", parts: [{ text: combined }] }
+          ],
+          generationConfig: { temperature: 0.2 }
+        })
+      });
+
+      const json = await resp.json();
+      if (!resp.ok) {
+        const msg = json?.error?.message || json?.message || ("HTTP " + resp.status);
+        throw new Error(msg);
+      }
+
+      const txt = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+      return (txt || "").trim();
     }
+
+}
 
     // ====== (3) 결과 파싱: [S] / [P] ======
     function parseSP(text) {
@@ -500,14 +680,24 @@
       return { s, p };
     }
 
-    btnSummarize.onclick = async () => {
-      const apiKey = apiKeyEl.value.trim();
+    
+    // ====== (X) Provider 선택 (OpenAI 우선) ======
+    function pickProvider() {
+      const openAiKey = (apiKeyEl?.value || "").trim();
+      const geminiKey = (geminiKeyEl?.value || "").trim();
+
+      if (openAiKey) return { provider: "openai", openAiKey, geminiKey };
+      if (geminiKey) return { provider: "gemini", openAiKey, geminiKey };
+      return { provider: null, openAiKey, geminiKey };
+    }
+
+btnSummarize.onclick = async () => {
+      const picked = pickProvider();
       const text = textBox.value.trim();
 
-      if (!apiKey) { alert("API Key를 입력하세요."); return; }
+      if (!picked.provider) { alert("OpenAI API Key 또는 Google Gemini API Key 중 하나를 입력하세요."); return; }
       if (!text) { alert("요약할 텍스트가 없습니다."); return; }
-
-      sBox.value = "";
+sBox.value = "";
       pBox.value = "";
       statusEl.textContent = "SOAP 요약 중...";
       statusEl.classList.remove("status-good","status-bad");
@@ -540,7 +730,9 @@
 `;
 
       try {
-        const raw = await callOpenAIResponses(apiKey, prompt, text);
+        const raw = (picked.provider === "openai")
+          ? await callOpenAIResponses(picked.openAiKey, prompt, text)
+          : await callGeminiGenerateContent(picked.geminiKey, prompt, text);
         const parsed = parseSP(raw);
 
         sBox.value = parsed.s || "- 특이사항 없음";
@@ -556,6 +748,62 @@
         alert(e.message);
       }
     };
+
+    // ====== (4) 약물 전송 (데모) ======
+    btnSend?.addEventListener("click", async () => {
+      const picked = pickProvider();
+      const text = (drugRaw?.value || "").trim();
+      if(!picked.provider){ alert("OpenAI API Key 또는 Google Gemini API Key 중 하나를 입력하세요."); return; }
+      if(!text){ alert("약물 원문을 입력하세요."); return; }
+const drugPrompt = `의료 기록 시스템에 입력하기 위해 환자의 약물 정보를 날짜별로 간결하고 체계적으로 정리합니다.
+- 날짜별로 구분해 작성합니다.
+- 약물명/용량/복용방법/변경(중단·추가·증량·감량) 여부를 포함합니다.
+- 불필요한 서술은 제거하고 기록용 문장으로 정리합니다.`;
+
+      if (sendResult) sendResult.value = "";
+      if (drugResult) drugResult.value = "";
+      statusEl.textContent = "약물 정리 중...";
+      statusEl.classList.remove("status-good","status-bad");
+      statusEl.classList.add("status-warn");
+      statusEl.style.display = ""; // 약물 모드에서도 상태를 잠깐 보여줌
+
+      try{
+        const raw = (picked.provider === "openai")
+          ? await callOpenAIResponses(picked.openAiKey, drugPrompt, text)
+          : await callGeminiGenerateContent(picked.geminiKey, drugPrompt, text);
+        if (sendResult) sendResult.value = raw || "(응답 없음)";
+        if (drugResult) drugResult.value = raw || "(응답 없음)";
+
+        statusEl.textContent = "완료";
+        statusEl.classList.remove("status-warn","status-bad");
+        statusEl.classList.add("status-good");
+      }catch(e){
+        const msg = "전송/정리 실패: " + (e?.message || e);
+        if (sendResult) sendResult.value = msg;
+        if (drugResult) drugResult.value = msg;
+        statusEl.textContent = "실패";
+        statusEl.classList.remove("status-good","status-warn");
+        statusEl.classList.add("status-bad");
+        alert(msg);
+      }finally{
+        // 약물 모드에서는 상태를 계속 보이게 하거나, 원하면 아래 줄을 주석 처리
+        // if(currentMode==="drug") statusEl.style.display = "none";
+      }
+    });
+
+    // ====== (5) 약물 원문 높이: 경고(.note) 박스 높이와 동일하게 ======
+    function syncNoteHeight(){
+      const note = document.querySelector(".note");
+      if(!note) return;
+      const h = Math.max(80, Math.round(note.getBoundingClientRect().height));
+      document.documentElement.style.setProperty("--note-h", h + "px");
+    }
+    window.addEventListener("resize", syncNoteHeight);
+    syncNoteHeight();
+
+    // 최초 모드: 음성
+    setMode("voice");
+
   </script>
 </body>
 </html>
