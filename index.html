@@ -1,809 +1,278 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>음성→텍스트→SOAP(S/P) 요약 (로컬 테스트용)</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>해링턴스퀘어 신흥역 민원문자 전송 도구</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #3498db;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --border-radius: 12px;
+        }
 
-  <style>
-    :root{
-      --bg-0:#0b1420;
-      --bg-1:#0e1b2a;
-      --panel:#0f2236;
-      --panel-2:#0c1c2e;
-      --stroke:rgba(255,255,255,.08);
-      --stroke-2:rgba(255,255,255,.12);
-      --text:#eaf2ff;
-      --muted:rgba(234,242,255,.72);
-      --muted2:rgba(234,242,255,.55);
-      --accent:#2aa6ff;
-      --accent-2:#00d6d6;
-      --warn:#ffcc66;
-      --good:#2bd576;
-      --bad:#ff6b6b;
-      --shadow: 0 18px 45px rgba(0,0,0,.35);
-      --radius: 18px;
-      --radius-lg: 22px;
-    }
+        * { box-sizing: border-box; }
 
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-      color:var(--text);
-      background:
-        radial-gradient(1100px 520px at 15% -10%, rgba(42,166,255,.22), transparent 55%),
-        radial-gradient(900px 520px at 95% 0%, rgba(0,214,214,.16), transparent 55%),
-        linear-gradient(180deg, var(--bg-0), var(--bg-1));
-      overflow-x:hidden;
-    }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
 
-    .app{
-      max-width: 1480px;
-      margin: 0 auto;
-      padding: 18px 18px 26px;
-    }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
 
-    /* Top Bar */
-    .topbar{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 12px;
-      padding: 14px 16px;
-      border: 1px solid var(--stroke);
-      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(10px);
-    }
+        header {
+            text-align: center;
+            padding: 30px 0;
+        }
 
-    .brand{
-      display:flex;
-      flex-direction:column;
-      gap: 2px;
-      min-width: 220px;
-    }
-    .brand .title{
-      font-size: 15px;
-      font-weight: 800;
-      letter-spacing: .2px;
-      display:flex;
-      align-items:center;
-      gap: 10px;
-    }
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap: 7px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--stroke);
-      background: rgba(255,255,255,.04);
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 650;
-      white-space:nowrap;
-    }
-    .dot{
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--good);
-      box-shadow: 0 0 0 4px rgba(43,213,118,.15);
-    }
-    .brand .subtitle{
-      color: var(--muted2);
-      font-size: 12px;
-    }
+        header h1 {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            margin: 0;
+            font-weight: 700;
+        }
 
-    .topbar-right{
-      display:flex;
-      align-items:center;
-      gap: 10px;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-    }
+        header p {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 8px;
+        }
 
-    .inputline{
-      display:flex;
-      align-items:center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 14px;
-      border: 1px solid var(--stroke);
-      background: rgba(0,0,0,.14);
-      min-width: min(400px, 100%);
-    }
-    .inputline label{
-      font-size: 12px;
-      color: var(--muted);
-      font-weight: 750;
-      letter-spacing: .15px;
-      white-space:nowrap;
-    }
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 24px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            border: 1px solid #eee;
+        }
 
-    input[type="password"]{
-      width: 100%;
-      border: none;
-      outline: none;
-      background: transparent;
-      color: var(--text);
-      font-size: 13px;
-      padding: 4px 0;
-    }
-    input[type="password"]::placeholder{ color: rgba(234,242,255,.35); }
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            color: var(--secondary-color);
+        }
 
-    .btnrow{
-      display:flex;
-      gap: 8px;
-      align-items:center;
-      flex-wrap:wrap;
-    }
+        .card-title span {
+            margin-right: 8px;
+        }
 
-    button{
-      border: 1px solid var(--stroke);
-      background: rgba(255,255,255,.04);
-      color: var(--text);
-      padding: 10px 12px;
-      border-radius: 14px;
-      font-weight: 750;
-      font-size: 13px;
-      cursor: pointer;
-      transition: transform .08s ease, border-color .15s ease, background .15s ease, opacity .15s ease;
-      box-shadow: 0 10px 22px rgba(0,0,0,.18);
-    }
-    button:hover{
-      border-color: rgba(255,255,255,.16);
-      background: rgba(255,255,255,.07);
-    }
-    button:active{ transform: translateY(1px); }
-    button:disabled{ opacity:.45; cursor:not-allowed; }
+        /* 수신번호 선택 스타일 추가 */
+        .receiver-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
 
-    .btn-primary{
-      border-color: rgba(42,166,255,.35);
-      background: linear-gradient(180deg, rgba(42,166,255,.25), rgba(42,166,255,.12));
-    }
-    .btn-accent{
-      border-color: rgba(0,214,214,.35);
-      background: linear-gradient(180deg, rgba(0,214,214,.22), rgba(0,214,214,.10));
-    }
+        .receiver-option {
+            border: 2px solid #eee;
+            border-radius: 10px;
+            padding: 12px 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            background: #fff;
+        }
 
-    #status{
-      font-weight: 850;
-      font-size: 12px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--stroke);
-      background: rgba(255,255,255,.04);
-      color: var(--muted);
-    }
+        .receiver-option.active {
+            border-color: var(--accent-color);
+            background-color: #f0f7ff;
+        }
 
-    .note{
-      margin: 12px 0 0;
-      padding: 10px 12px;
-      border-radius: 16px;
-      border: 1px solid rgba(255,204,102,.22);
-      background: rgba(255,204,102,.06);
-      color: rgba(255,241,214,.85);
-      font-size: 12px;
-      line-height: 1.45;
-    }
+        .receiver-option .label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 4px;
+            display: block;
+        }
 
-    /* Main Layout */
-    .layout{
-      margin-top: 14px;
-      display:grid;
-      grid-template-columns: 360px 1fr;
-      gap: 14px;
-      align-items: start;
-    }
+        .receiver-option .phone-num {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
 
-    @media (max-width: 1020px){
-      .layout{ grid-template-columns: 1fr; }
-      .inputline{ min-width: 100%; }
-      .topbar{ align-items:flex-start; }
-      .topbar-right{ justify-content:flex-start; }
-      .brand{ min-width: auto; }
-    }
+        .receiver-option.active .phone-num {
+            color: var(--accent-color);
+        }
 
-    .card{
-      border: 1px solid var(--stroke);
-      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
+        /* 체크 표시 아이콘 */
+        .receiver-option.active::after {
+            content: '✓';
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--accent-color);
+            font-weight: bold;
+        }
 
-    .card-header{
-      padding: 12px 14px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 10px;
-      border-bottom: 1px solid var(--stroke);
-      background: rgba(0,0,0,.12);
-    }
+        .template-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+        }
 
-    .card-title{
-      font-size: 13px;
-      font-weight: 900;
-      letter-spacing: .2px;
-      color: var(--text);
-      display:flex;
-      gap: 8px;
-      align-items:center;
-    }
+        .template-btn {
+            width: 100%;
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+            position: relative;
+            min-width: 0;
+        }
 
-    .card-body{ padding: 12px 14px 14px; }
+        .template-btn:hover {
+            border-color: var(--accent-color);
+            background: #f0f7ff;
+        }
 
-    textarea{
-      width:100%;
-      min-height: 180px;
-      resize: vertical;
-      border-radius: 16px;
-      border: 1px solid var(--stroke);
-      background: rgba(0,0,0,.18);
-      color: var(--text);
-      padding: 12px 12px;
-      font-size: 13px;
-      line-height: 1.5;
-      outline: none;
-      transition: border-color .15s ease, background .15s ease;
-    }
-    textarea:focus{
-      border-color: rgba(42,166,255,.35);
-      background: rgba(0,0,0,.22);
-    }
-    textarea::placeholder{ color: rgba(234,242,255,.35); }
+        .template-btn:active {
+            transform: scale(0.98);
+        }
 
-    /* Kanban */
-    .kanban{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      align-items: start;
-    }
-    @media (max-width: 980px){
-      .kanban{ grid-template-columns: 1fr; }
-    }
+        .template-tag {
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: var(--accent-color);
+            display: block;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
 
-    .split{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    @media (max-width: 980px){
-      .split{ grid-template-columns: 1fr; }
-    }
+        .info-text {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 15px;
+            text-align: center;
+        }
 
-    .mini{
-      font-size: 12px;
-      color: var(--muted2);
-    }
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
 
-    /* Make S/P boxes a bit shorter like panels */
-    #sBox, #pBox { min-height: 240px; }
-
-    /* Subtle section spacing */
-    .stack{ display:flex; flex-direction:column; gap: 14px; }
-
-    /* Optional badge colors (status text only) */
-    .status-good{ border-color: rgba(43,213,118,.25)!important; }
-    .status-warn{ border-color: rgba(255,204,102,.25)!important; }
-    .status-bad{ border-color: rgba(255,107,107,.25)!important; }
-
-  
-    /* ===== Patch: Drug textarea height matches .note height ===== */
-    :root{ --note-h: 120px; } /* default fallback */
-    #drugRaw{ min-height: var(--note-h) !important; }
-
-
-    /* ===== Patch: Drug mode collapses empty left column ===== */
-    body.mode-drug #mainLayout{
-      grid-template-columns: 1fr !important;
-    }
-    body.mode-drug #leftCol{ display:none !important; }
-    body.mode-drug #rightCol{ width:100%; }
-
-</style>
+        .hits {
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
 </head>
-
 <body>
-  <div class="app">
-    <!-- TOP BAR -->
-    <div class="topbar">
-      <div class="brand">
-        <div class="title">
-          음성 → 텍스트 → SOAP(S/P) 요약
-          <span class="pill"><span class="dot"></span> Live</span>
-        </div>
-        <div class="subtitle">로컬 테스트용 · 디자인만 대시보드 스타일</div>
-      <div class="btnrow" style="margin-top:8px">
-        <button id="tabVoice" class="btn-primary">음성</button>
-        <button id="tabDrug">약물</button>
-      </div>
-      </div>
 
-      <div class="topbar-right">
-        <!--<div class="inputline">
-          <label for="geminiKey">Google Gemini API Key</label>
-          <input id="geminiKey" type="password" placeholder="AIza... (로컬 테스트용, 저장 안 함)" />
-        </div>-->
-<div class="inputline">
-          <label for="apiKey">OpenAI API Key</label>
-          <input id="apiKey" type="password" placeholder="sk-... (로컬 테스트용, 저장 안 함)" />
-        </div>
+<div class="container">
+    <header>
+        <h1>📨 성남시 민원문자 전송</h1>
+        <p>중앙동-성남시 민원 해결을 위한 문자 발송 도구</p>
+    </header>
 
-        <div class="btnrow">
-          <button id="btnStart" class="btn-primary">녹음 시작</button>
-          <button id="btnStop" disabled>녹음 중지</button>
-          <button id="btnSummarize" class="btn-accent">SOAP 요약하기</button>
-          <button id="btnSend" class="btn-accent" style="display:none">전송</button>
-          <span id="status">대기</span>
+    <div class="card">
+        <div class="card-title"><span>📱</span> 수신처 선택</div>
+        <div class="receiver-selector">
+            <div class="receiver-option active" onclick="selectReceiver(this, '01059200184')">
+                <span class="label">성남시 민원</span>
+                <span class="phone-num">010-5920-0184</span>
+            </div>
+            <div class="receiver-option" onclick="selectReceiver(this, '0317296102')">
+                <span class="label">성남시 중원구 시민봉사과</span>
+                <span class="phone-num">031-729-6102</span>
+            </div>
         </div>
-      </div>
+        <p class="info-text">※ 발송할 대상을 선택한 후 아래 문구를 <strong>탭</strong>하세요.</p>
     </div>
 
-    <div class="note">
-      ⚠️ 이 파일은 <b>개인 PC에서만</b> 테스트용입니다. 브라우저에서 API Key가 노출될 수 있으니 사내 배포/운영에는 사용하지 마세요.
+    <div class="card">
+        <div class="card-title"><span>📝</span> 민원 내용 선택</div>
+
+        <div class="template-list">
+            <div class="template-btn" onclick="sendSMS(templates.underground)">
+                <span class="template-tag">[전선 지중화 주민 민원]</span>
+                중앙동 하늘채·힐스테이트·해링턴 일대는 전선 지중화가 이루어지지 않아 정전 사고 등이 발생하고 있습니다... (전체 보기)
+            </div>
+
+            <div class="template-btn" onclick="sendSMS('공사 현장 소음 및 비산먼지 저감 대책 마련 요청드립니다.')">
+                <span class="template-tag">환경 민원</span>
+                공사 현장 소음 및 비산먼지 저감 대책 마련 요청
+            </div>
+
+            <div class="template-btn" onclick="sendSMS('성남시 중앙동 일대 생활 불편 사항 개선 및 조속한 답변을 요청합니다.')">
+                <span class="template-tag">일반 민원</span>
+                기타 생활 불편 사항 개선 요청
+            </div>
+        </div>
     </div>
 
-    <!-- MAIN -->
-    <div id="mainLayout" class="layout">
-      <!-- LEFT -->
-      <div id="leftCol" class="stack">
-        <div id="voiceLeft" class="stack">
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">원문 (음성 → 텍스트)</div>
-            <div class="mini">녹음 후 자동 입력</div>
-          </div>
-          <div class="card-body">
-            <textarea id="textBox" placeholder="여기에 음성이 텍스트로 입력됩니다."></textarea>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">도움말</div>
-            <div class="mini">S/P는 읽기 전용</div>
-          </div>
-          <div class="card-body">
-            <div class="mini" style="line-height:1.7">
-              • <b>녹음 시작</b> → 말하기 → <b>녹음 중지</b><br/>
-              • 원문이 들어오면 <b>SOAP 요약하기</b> 클릭<br/>
-              • 결과는 우측 S / P 패널에 bullet로 표시
-            </div>
-          </div>
-        </div>
-      </div>
-
-
-        </div>
-
-        <div id="drugLeft" class="stack" style="display:none">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">원문 (약물)</div>
-              <div class="mini">직접 입력</div>
-            </div>
-            <div class="card-body">
-              <textarea id="drugRaw" placeholder="여기에 약물 관련 원문을 입력하세요."></textarea>
-            </div>
-          </div>
-
-
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">전송 결과</div>
-              <div class="mini">서버 응답 표시</div>
-            </div>
-            <div class="card-body">
-              <textarea id="sendResult" placeholder="전송 버튼을 누르면 서버 응답이 여기에 표시됩니다." readonly></textarea>
-            </div>
-          </div>
-
-
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">도움말</div>
-              <div class="mini">약물 모드</div>
-            </div>
-            <div class="card-body">
-              <div class="mini" style="line-height:1.7">
-                • 약물 원문을 입력한 뒤 <b>전송</b>을 클릭합니다.<br/>
-                • 전송은 서버 연동(fetch)으로 붙이면 됩니다.<br/>
-                • 오른쪽 <b>정리</b> 박스에 결과를 표시하도록 연결할 수 있습니다.
-              </div>
-            </div>
-          </div>
-        </div>
-
-
-      <!-- RIGHT -->
-      <div id="rightCol">
-      <div id="soapRight" class="kanban">
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">S (Subjective)</div>
-            <div class="pill">환자 주관</div>
-          </div>
-          <div class="card-body">
-            <textarea id="sBox" placeholder="환자가 직접 호소/표현한 내용 요약 (bullet)" readonly></textarea>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">P (Plan)</div>
-            <div class="pill">치료 방침</div>
-          </div>
-          <div class="card-body">
-            <textarea id="pBox" placeholder="의사의 계획/치료 방침 요약 (bullet)" readonly></textarea>
-          </div>
-        </div>
-
-      <!-- DRUG RIGHT (hidden by default) -->
-      <div id="drugRight" class="kanban" style="display:none">
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">원문</div>
-            <div class="mini">약물 원문</div>
-          </div>
-          <div class="card-body">
-            <textarea id="drugRawMirror" placeholder="(약물 원문은 좌측 입력을 사용하세요.)" readonly></textarea>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">정리</div>
-            <div class="mini">결과</div>
-          </div>
-          <div class="card-body">
-            <textarea id="drugResult" placeholder="전송/정리 결과가 여기에 표시됩니다." readonly></textarea>
-          </div>
-        </div>
-      </div>
-
-      </div>
-      </div>
+    <div class="hits">
+      <img src="https://hits.sh/smarttebs.github.io/sinheungharrington.svg?label=access" alt="Hits">
     </div>
-  </div>
 
-  <script>
-    // ====== (1) 음성인식(Web Speech API) ======
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    <footer>
+        © 중앙동 민원 전송 도구 · 해링턴스퀘어 신흥역
+    </footer>
+</div>
 
-    const btnStart = document.getElementById("btnStart");
-    const btnStop  = document.getElementById("btnStop");
-    const btnSummarize = document.getElementById("btnSummarize");
+<script>
+// 전역 변수로 현재 선택된 수신번호 저장 (기본값 설정)
+let selectedPhone = '01059200184';
 
-    const statusEl = document.getElementById("status");
-    const textBox  = document.getElementById("textBox");
-    const sBox     = document.getElementById("sBox");
-    const pBox     = document.getElementById("pBox");
-    const apiKeyEl = document.getElementById("apiKey");
-    const geminiKeyEl = document.getElementById("geminiKey");
+const templates = {
+    underground: `[전선 지중화 주민 민원]
+중앙동 하늘채·힐스테이트·해링턴 일대는 전선 지중화가 이루어지지 않아,
+공동주택에서 정전 사고 및 전기 설비 파손 피해가 반복적으로 발생하고 있습니다.
 
-    // ====== (0) 모드 탭(음성/약물) ======
-    const tabVoice = document.getElementById("tabVoice");
-    const tabDrug  = document.getElementById("tabDrug");
-    const btnSend  = document.getElementById("btnSend");
+전기 사고로 인해 수많은 세대가 불편을 겪고 있으며,
+주민 안전까지 위협받는 상황입니다.
 
-    const voiceLeft = document.getElementById("voiceLeft");
-    const drugLeft  = document.getElementById("drugLeft");
-    const soapRight = document.getElementById("soapRight");
-    const drugRight = document.getElementById("drugRight");
+성남시가 중앙동 주민을 더 이상 외면하지 않는다면,
+공동주택 밀집 지역인 중앙동에 대해 즉각적인 전선 지중화 대책을 마련해야 합니다.
 
-    const drugRaw = document.getElementById("drugRaw");
-    const drugRawMirror = document.getElementById("drugRawMirror");
-    const drugResult = document.getElementById("drugResult");
-    const sendResult = document.getElementById("sendResult");
+주민의 안전과 생활권 보호를 위해
+조속한 조치를 강력히 요구합니다.`
+};
 
-    let currentMode = "voice"; // "voice" | "drug"
-
-    function setMode(mode){
-      currentMode = mode;
-      const isDrug = (mode === "drug");
-
-      // body class for layout
-      document.body.classList.toggle("mode-drug", isDrug);
-
-
-      // Top action buttons
-      btnStart.style.display = isDrug ? "none" : "";
-      btnStop.style.display  = isDrug ? "none" : "";
-      btnSummarize.style.display = isDrug ? "none" : "";
-      statusEl.style.display = isDrug ? "none" : "";
-      btnSend.style.display  = isDrug ? "" : "none";
-
-      // Panels
-      if (voiceLeft) voiceLeft.style.display = isDrug ? "none" : "";
-      if (drugLeft)  drugLeft.style.display  = isDrug ? "" : "none";
-      if (soapRight) soapRight.style.display = isDrug ? "none" : "grid";
-      if (drugRight) drugRight.style.display = isDrug ? "grid" : "none";
-
-      // Tab highlight
-      if (isDrug){
-        tabDrug.classList.add("btn-primary");
-        tabVoice.classList.remove("btn-primary");
-      } else {
-        tabVoice.classList.add("btn-primary");
-        tabDrug.classList.remove("btn-primary");
-      }
-    }
-
-    tabVoice?.addEventListener("click", () => setMode("voice"));
-    tabDrug?.addEventListener("click", () => setMode("drug"));
-
-    // 약물 원문 미러
-    drugRaw?.addEventListener("input", () => {
-      if (drugRawMirror) drugRawMirror.value = drugRaw.value;
+// 수신처 선택 함수
+function selectReceiver(element, phone) {
+    // 모든 옵션에서 active 클래스 제거
+    document.querySelectorAll('.receiver-option').forEach(opt => {
+        opt.classList.remove('active');
     });
-
-
-    if (!SpeechRecognition) {
-      statusEl.textContent = "이 브라우저는 실시간 음성 인식을 지원하지 않습니다. (Chrome 권장)";
-      btnStart.disabled = true;
-      btnStop.disabled = true;
-      btnSummarize.disabled = true;
-      throw new Error("SpeechRecognition not supported");
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "ko-KR";
-    recognition.interimResults = true;
-    recognition.continuous = true;
-
-    let finalText = "";
-
-    recognition.onstart = () => {
-      statusEl.textContent = "녹음 중...";
-      statusEl.classList.remove("status-bad","status-warn");
-      statusEl.classList.add("status-good");
-      btnStart.disabled = true;
-      btnStop.disabled = false;
-    };
-
-    recognition.onend = () => {
-      statusEl.textContent = "중지됨";
-      statusEl.classList.remove("status-good","status-bad");
-      statusEl.classList.add("status-warn");
-      btnStart.disabled = false;
-      btnStop.disabled = true;
-    };
-
-    recognition.onerror = (e) => {
-      statusEl.textContent = "오류: " + e.error;
-      statusEl.classList.remove("status-good","status-warn");
-      statusEl.classList.add("status-bad");
-    };
-
-    recognition.onresult = (event) => {
-      let interim = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) finalText += transcript + " ";
-        else interim += transcript;
-      }
-      textBox.value = finalText + interim;
-    };
-
-    btnStart.onclick = () => { try { recognition.start(); } catch(e) {} };
-    btnStop.onclick  = () => recognition.stop();
-
-    // ====== (2) OpenAI 호출 (Responses API) ======
-    async function callOpenAIResponses(apiKey, prompt, text) {
-      const resp = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + apiKey
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          input: [
-            {
-              role: "system",
-              content: [{ type: "input_text", text: prompt }]
-            },
-            {
-              role: "user",
-              content: [{ type: "input_text", text }]
-            }
-          ]
-        })
-      });
-
-      const json = await resp.json();
-      if (!resp.ok) {
-        throw new Error(json?.error?.message || ("HTTP " + resp.status));
-      }
-
-      const out0 = json.output?.[0];
-      const txt = out0?.content?.[0]?.text;
-      return (txt || "").trim();
-    
-    // ====== (2-2) Google Gemini 호출 (Generative Language API: generateContent) ======
-    //  로컬 테스트용: 브라우저에서 키가 노출될 수 있습니다.
-    async function callGeminiGenerateContent(geminiKey, prompt, text) {
-      const model = "gemini-1.5-flash";
-      const url = "https://generativelanguage.googleapis.com/v1beta/models/" + model
-                + ":generateContent?key=" + encodeURIComponent(geminiKey);
-
-      const combined = prompt + "\n\n[대화 원문]\n" + text;
-
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            { role: "user", parts: [{ text: combined }] }
-          ],
-          generationConfig: { temperature: 0.2 }
-        })
-      });
-
-      const json = await resp.json();
-      if (!resp.ok) {
-        const msg = json?.error?.message || json?.message || ("HTTP " + resp.status);
-        throw new Error(msg);
-      }
-
-      const txt = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-      return (txt || "").trim();
-    }
-
+    // 클릭된 요소에 active 클래스 추가
+    element.classList.add('active');
+    // 선택된 번호 업데이트
+    selectedPhone = phone;
 }
 
-    // ====== (3) 결과 파싱: [S] / [P] ======
-    function parseSP(text) {
-      let s = "";
-      let p = "";
+function sendSMS(message) {
+    // 선택된 번호(selectedPhone)를 사용하여 URL 생성
+    const smsUrl = `sms:${selectedPhone}${getSMSDivider()}body=${encodeURIComponent(message)}`;
+    window.location.href = smsUrl;
+}
 
-      const sIdx = text.indexOf("[S]");
-      const pIdx = text.indexOf("[P]");
+function getSMSDivider() {
+    return (navigator.userAgent.match(/iPhone|iPad|iPod/i) ? '&' : '?');
+}
+</script>
 
-      if (sIdx !== -1 && pIdx !== -1) {
-        s = text.substring(sIdx + 3, pIdx).trim();
-        p = text.substring(pIdx + 3).trim();
-      } else {
-        const s2 = text.match(/(?:^|\n)S\s*[:\]]\s*([\s\S]*?)(?:\nP\s*[:\]]|$)/i);
-        const p2 = text.match(/(?:^|\n)P\s*[:\]]\s*([\s\S]*)$/i);
-        if (s2) s = s2[1].trim();
-        if (p2) p = p2[1].trim();
-        if (!s && !p) s = text;
-      }
-      return { s, p };
-    }
-
-    
-    // ====== (X) Provider 선택 (OpenAI 우선) ======
-    function pickProvider() {
-      const openAiKey = (apiKeyEl?.value || "").trim();
-      const geminiKey = (geminiKeyEl?.value || "").trim();
-
-      if (openAiKey) return { provider: "openai", openAiKey, geminiKey };
-      if (geminiKey) return { provider: "gemini", openAiKey, geminiKey };
-      return { provider: null, openAiKey, geminiKey };
-    }
-
-btnSummarize.onclick = async () => {
-      const picked = pickProvider();
-      const text = textBox.value.trim();
-
-      if (!picked.provider) { alert("OpenAI API Key 또는 Google Gemini API Key 중 하나를 입력하세요."); return; }
-      if (!text) { alert("요약할 텍스트가 없습니다."); return; }
-sBox.value = "";
-      pBox.value = "";
-      statusEl.textContent = "SOAP 요약 중...";
-      statusEl.classList.remove("status-good","status-bad");
-      statusEl.classList.add("status-warn");
-
-      const prompt = `### Instruction ###
-당신은 의료 기록 전문가입니다. 아래에 외래 진료 중 의사와 환자의 대화가 주어집니다. 이 대화를 바탕으로 SOAP 형식 중 다음 두 항목만 간결하고 전문적으로 요약하세요.
-
-- S (Subjective): 환자가 직접 호소하거나 표현한 증상, 불편, 감정, 병력 등 주관적 정보
-- P (Plan): 의사가 설명하거나 계획한 검사 결과, 치료 또는 약물 계획, 교육, 추후 진료 등 치료 방침
-
-※ 작성 지침:
-- 각 항목은 짧고 명료한 bullet 형식으로 요약합니다.
-- 불필요하거나 반복적인 문장은 생략합니다.
-- 의사와 환자의 발화를 구분하여 분석하고 요약합니다.
-- 검사 수치에 대한 내용은 주로 의사가 말하며, 환자가 말하는 경우는 거의 없습니다.
-- 검사 수치 및 의학적 정보는 구체적으로 기술합니다.
-
-※ 출력 형식(반드시 준수):
-[S]
-- ...
-- ...
-[P]
-- ...
-- ...
-
-추가 규칙:
-- [S]와 [P] 섹션은 반드시 모두 출력합니다. 해당 내용이 없으면 "- 특이사항 없음" 으로 출력합니다.
-- 각 bullet 사이에는 빈 줄 없이 붙여서 작성합니다.
-`;
-
-      try {
-        const raw = (picked.provider === "openai")
-          ? await callOpenAIResponses(picked.openAiKey, prompt, text)
-          : await callGeminiGenerateContent(picked.geminiKey, prompt, text);
-        const parsed = parseSP(raw);
-
-        sBox.value = parsed.s || "- 특이사항 없음";
-        pBox.value = parsed.p || "- 특이사항 없음";
-
-        statusEl.textContent = "완료";
-        statusEl.classList.remove("status-warn","status-bad");
-        statusEl.classList.add("status-good");
-      } catch (e) {
-        statusEl.textContent = "요약 실패";
-        statusEl.classList.remove("status-good","status-warn");
-        statusEl.classList.add("status-bad");
-        alert(e.message);
-      }
-    };
-
-    // ====== (4) 약물 전송 (데모) ======
-    btnSend?.addEventListener("click", async () => {
-      const picked = pickProvider();
-      const text = (drugRaw?.value || "").trim();
-      if(!picked.provider){ alert("OpenAI API Key 또는 Google Gemini API Key 중 하나를 입력하세요."); return; }
-      if(!text){ alert("약물 원문을 입력하세요."); return; }
-const drugPrompt = `의료 기록 시스템에 입력하기 위해 환자의 약물 정보를 날짜별로 간결하고 체계적으로 정리합니다.
-- 날짜별로 구분해 작성합니다.
-- 약물명/용량/복용방법/변경(중단·추가·증량·감량) 여부를 포함합니다.
-- 불필요한 서술은 제거하고 기록용 문장으로 정리합니다.`;
-
-      if (sendResult) sendResult.value = "";
-      if (drugResult) drugResult.value = "";
-      statusEl.textContent = "약물 정리 중...";
-      statusEl.classList.remove("status-good","status-bad");
-      statusEl.classList.add("status-warn");
-      statusEl.style.display = ""; // 약물 모드에서도 상태를 잠깐 보여줌
-
-      try{
-        const raw = (picked.provider === "openai")
-          ? await callOpenAIResponses(picked.openAiKey, drugPrompt, text)
-          : await callGeminiGenerateContent(picked.geminiKey, drugPrompt, text);
-        if (sendResult) sendResult.value = raw || "(응답 없음)";
-        if (drugResult) drugResult.value = raw || "(응답 없음)";
-
-        statusEl.textContent = "완료";
-        statusEl.classList.remove("status-warn","status-bad");
-        statusEl.classList.add("status-good");
-      }catch(e){
-        const msg = "전송/정리 실패: " + (e?.message || e);
-        if (sendResult) sendResult.value = msg;
-        if (drugResult) drugResult.value = msg;
-        statusEl.textContent = "실패";
-        statusEl.classList.remove("status-good","status-warn");
-        statusEl.classList.add("status-bad");
-        alert(msg);
-      }finally{
-        // 약물 모드에서는 상태를 계속 보이게 하거나, 원하면 아래 줄을 주석 처리
-        // if(currentMode==="drug") statusEl.style.display = "none";
-      }
-    });
-
-    // ====== (5) 약물 원문 높이: 경고(.note) 박스 높이와 동일하게 ======
-    function syncNoteHeight(){
-      const note = document.querySelector(".note");
-      if(!note) return;
-      const h = Math.max(80, Math.round(note.getBoundingClientRect().height));
-      document.documentElement.style.setProperty("--note-h", h + "px");
-    }
-    window.addEventListener("resize", syncNoteHeight);
-    syncNoteHeight();
-
-    // 최초 모드: 음성
-    setMode("voice");
-
-  </script>
 </body>
 </html>
